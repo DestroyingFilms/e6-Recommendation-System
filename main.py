@@ -816,11 +816,9 @@ class App(tk.Tk):
         for index, page in enumerate(self.help_pages):
             if page['additional_img']:
                 try:
-                    write_to_log(f"{self.help_pages[index]['additional_img'].get('img')} - OK")
                     self.help_pages[index]['additional_img']['img'] = ImageTk.PhotoImage(
                         Image.open(page['additional_img']['img']))
                 except:
-                    write_to_log(f"{self.help_pages[index]['additional_img'].get('img')} - MISSING")
                     self.help_pages[index]['additional_img']['img'] = "Missing"
             self.progress_img["value"] = (index + 1) / len(self.help_pages) * 100
         self.enable_sidebar()
@@ -1597,6 +1595,7 @@ class App(tk.Tk):
     def load_images(self):
         # Loading help images, if they have not been already loaded before
         if not self.help_loaded:
+            write_to_log('Loading help images...')
             for index, page in enumerate(self.help_pages):
                 if page['additional_img']:
                     try:
@@ -1606,6 +1605,7 @@ class App(tk.Tk):
                         self.help_pages[index]['additional_img'] = "Missing"
                 self.progress_img["value"] = (index + 1) / (len(self.help_pages) + len(self.final_res)) * 100
             self.help_loaded = True
+            write_to_log("Loading help images completed.")
         write_to_log('Loading results images...')
         failed_indexes = ''
         # Attemping to load preview images
