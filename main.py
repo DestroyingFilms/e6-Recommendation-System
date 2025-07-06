@@ -123,21 +123,22 @@ except:
 
 # Write debug info to log files
 def write_to_log(msg, day_of_creation=str(date.today()), time_of_creation=datetime.now().strftime("%H-%M-%S")):
-    if msg.count('\n') > 0:
-        msgs = msg.split('\n')
-        formated_msg = ''
-        for msg in msgs:
-            formated_msg += f'[{datetime.now().strftime("%H:%M:%S")}]: {str(msg)}\n'
-        with open(f'data/logs/log-{day_of_creation}-{time_of_creation}.log', 'a') as f:
-            f.write(formated_msg)
-        with open(f'data/logs/latest.log', 'a') as f:
-            f.write(formated_msg)
-    else:
-        formated_msg = f'[{datetime.now().strftime("%H:%M:%S")}]: {str(msg)}\n'
-        with open(f'data/logs/log-{day_of_creation}-{time_of_creation}.log', 'a') as f:
-            f.write(formated_msg)
-        with open(f'data/logs/latest.log', 'a') as f:
-            f.write(formated_msg)
+    if config['options']['logging']:
+        if msg.count('\n') > 0:
+            msgs = msg.split('\n')
+            formated_msg = ''
+            for msg in msgs:
+                formated_msg += f'[{datetime.now().strftime("%H:%M:%S")}]: {str(msg)}\n'
+            with open(f'data/logs/log-{day_of_creation}-{time_of_creation}.log', 'a') as f:
+                f.write(formated_msg)
+            with open(f'data/logs/latest.log', 'a') as f:
+                f.write(formated_msg)
+        else:
+            formated_msg = f'[{datetime.now().strftime("%H:%M:%S")}]: {str(msg)}\n'
+            with open(f'data/logs/log-{day_of_creation}-{time_of_creation}.log', 'a') as f:
+                f.write(formated_msg)
+            with open(f'data/logs/latest.log', 'a') as f:
+                f.write(formated_msg)
 
 
 try:
