@@ -275,7 +275,12 @@ class App(tk.Tk):
              'additional_img': {'img': 'data/help/preview_of_previews_options_just.png', 'x': 0, 'y': 0}},
 
             {
-                'text': 'The first one is "Profile", where you can change the profile to use during recommendations.\nYou will need to provide username and API key for it.',
+                'text': 'The first one is "Profile", where you can change the profile to use during recommendations.\nYou will need to provide username for it.',
+                'width': 400, 'height': 200, 'rel_x': 0.65, 'rel_y': 0.7,
+                'additional_img': {'img': 'data/help/preview_of_previews_options_profile.png', 'x': 0, 'y': 0}},
+
+            {
+                'text': 'API key is optional. But if you have hidden your favorites, then you will have to provide API key for the program to be able to access them.',
                 'width': 400, 'height': 200, 'rel_x': 0.65, 'rel_y': 0.7,
                 'additional_img': {'img': 'data/help/preview_of_previews_options_profile.png', 'x': 0, 'y': 0}},
 
@@ -843,8 +848,8 @@ class App(tk.Tk):
         login = config['profile']['login']
         api_key = config['profile']['API_key']
 
-        # If login or API key is empty, remove all loaded images, request user to provide them.
-        if not login.strip() or not api_key.strip():
+        # If login is empty, remove all loaded images, request user to provide account information.
+        if not login.strip():
             write_to_log('Profile is missing. Authorization requested.')
             self.ability_to_exit = True
             self.disable_sidebar()
@@ -857,14 +862,20 @@ class App(tk.Tk):
 
         # Login and API key is OK and Auto Load is set to True, then change state to a 'completed' one
         elif config['options']['auto_load']:
-            session.auth = HTTPBasicAuth(login, api_key)
+            if api_key.strip():
+                session.auth = HTTPBasicAuth(login, api_key)
+            else:
+                session.auth = None
             self.ability_to_exit = False
             self.set_completed_state()
 
         # Auto load is False, show a generic screen with no results loaded yet.
         else:
             write_to_log('Profile exists.')
-            session.auth = HTTPBasicAuth(login, api_key)
+            if api_key.strip():
+                session.auth = HTTPBasicAuth(login, api_key)
+            else:
+                session.auth = None
             self.ability_to_exit = True
             self.enable_sidebar()
             for widget in self.scrollable_frame.winfo_children():
@@ -898,11 +909,13 @@ class App(tk.Tk):
         self.disable_sidebar()
         config_for_log = copy.deepcopy(config)
         config_for_log['profile']['API_key'] = '[HIDDEN]'
+        login = urllib.parse.quote(
+                config['profile']['login'].replace(' ', '_'))
         write_to_log(f'Current config: {config_for_log}')
         write_to_log('Mandatory check of the profile...')
         if not self.check_state:
             try:
-                req = session.get('https://e621.net/favorites.json')
+                req = session.get(f'https://e621.net/posts.json?tags=fav:{login}')
                 res = req.status_code
             except:
                 res = -1
@@ -980,18 +993,21 @@ class App(tk.Tk):
             self.login_entry.configure(highlightbackground="red", highlightcolor="red")
         else:
             self.login_entry.configure(highlightbackground="white", highlightcolor="white")
-        if not api_key.strip():
-            self.api_entry.configure(highlightbackground="red", highlightcolor="red")
-        else:
-            self.api_entry.configure(highlightbackground="white", highlightcolor="white")
-        if login.strip() and api_key.strip():
+
+        if login.strip():
             config['profile']['login'] = login
-            config['profile']['API_key'] = api_key
-            session.auth = HTTPBasicAuth(login, api_key)
+            if api_key.strip():
+                config['profile']['API_key'] = api_key
+                session.auth = HTTPBasicAuth(login, api_key)
+            else:
+                config['profile']['API_key'] = ''
+                session.auth = None
             write_to_config(config)
+            login_cleaned = urllib.parse.quote(
+                login.replace(' ', '_'))
             self.login_frame.destroy()
             try:
-                req = session.get('https://e621.net/favorites.json')
+                req = session.get(f"https://e621.net/posts.json?tags=fav:{login_cleaned}")
                 res = req.status_code
             except:
                 res = -1
@@ -1038,10 +1054,7 @@ class App(tk.Tk):
         self.login_frame.place(relx=0.5, rely=0.5, anchor="center", width=400, height=300 if not change else 350)
 
         if error:
-            title = tk.Label(self.login_frame, text="Invalid login or API key.", font=("Segoe UI", 12, "bold"),
-                             bg=overlays_color, fg="white")
-            title.pack(pady=3)
-            title = tk.Label(self.login_frame, text="Or there is no connection to e621.", font=("Segoe UI", 12, "bold"),
+            title = tk.Label(self.login_frame, text="Invalid login or API key is needed.\nOr there is no connection to e621.", font=("Segoe UI", 12, "bold"),
                              bg=overlays_color, fg="white")
             title.pack(pady=3)
         elif not change:
@@ -1062,7 +1075,7 @@ class App(tk.Tk):
                                     highlightthickness=2)
         self.login_entry.pack(pady=7, ipadx=30, ipady=5)
 
-        title = tk.Label(self.login_frame, text="API key", font=font.Font(family="Segoe UI", size=10, underline=True),
+        title = tk.Label(self.login_frame, text="API key (optional)", font=font.Font(family="Segoe UI", size=10, underline=True),
                          bg=overlays_color, fg="white")
         title.pack(pady=5)
         title.bind("<Button-1>", lambda e: (pyperclip.copy('https://e621.net/help/api'), threading.Thread(
@@ -1079,7 +1092,6 @@ class App(tk.Tk):
             self.api_entry.configure(highlightbackground="red", highlightcolor="red")
             config["profile"]["login"] = ''
             config["profile"]["API_key"] = ''
-            config["options"]["blacklist"] = ["young", "loli", "shota", "gore", "feces", "urine"]
             write_to_config(config)
         else:
             self.login_entry.configure(highlightbackground="white", highlightcolor="white")
@@ -1132,16 +1144,18 @@ class App(tk.Tk):
     # Downloading favorite posts
     # Will download them page-by-page with 320 posts in a single page.
     # Favorites will also be filtered with a blacklist.
-    def download_fav_posts(self, blacklist):
+    def download_fav_posts(self, blacklist, login):
         write_to_log('Downloading favorite posts...')
         blacklist = set(filter(None, map(str.strip, blacklist)))
         blacklist.update({"young", "loli", "shota"})
+        login = urllib.parse.quote(
+            login.replace(' ','_'))
         self.log_to_console("Downloading favorite posts...")
         i = 1
         try:
             fav = pd.DataFrame(columns=['id',
                                         'tag_string'])  # This DataFrame will contain filtered posts, that will be later converted to a csv file.
-            req = session.get(f'https://e621.net/favorites.json?limit=320&page={i}')
+            req = session.get(f'https://e621.net/posts.json?limit=320&tags=fav:{login}&page={i}')
             time.sleep(INTENTIONAL_DELAY)
             res = req.status_code
             if res == 200:
@@ -1166,11 +1180,17 @@ class App(tk.Tk):
                     if self.cancel_loading:
                         break
                     i += 1
-                    req = session.get(f'https://e621.net/favorites.json?limit=320&page={i}')
+                    req = session.get(f'https://e621.net/posts.json?limit=320&tags=fav:{login}&page={i}')
                     time.sleep(INTENTIONAL_DELAY)
                     res = req.status_code
                     if res == 200:
                         js = req.json()
+                    elif res == 403:
+                        self.data_state = 'error'
+                        self.log_to_console(f"Error! Your favorites are hidden!")
+                        self.log_to_console("Please cancel the process and input your API key in the profile section.")
+                        write_to_log(f'Error. Response from e6: {res}')
+                        break
                     else:
                         self.data_state = 'error'
                         self.log_to_console(f"Error! Response from the e6: {res}")
@@ -1184,7 +1204,11 @@ class App(tk.Tk):
                     self.log_to_console("The program will not work without a single post being favorited.")
                     self.log_to_console("Please cancel the process and try again later.")
                     write_to_log('Not a single post was found.')
-
+            elif res==403:
+                self.data_state = 'error'
+                self.log_to_console(f"Error! Your favorites are hidden!")
+                self.log_to_console("Please cancel the process and input your API key in the profile section.")
+                write_to_log(f'Error. Response from e6: {res}')
             else:
                 self.data_state = 'error'
                 self.log_to_console(f"Error! Response from e6: {res}")
@@ -1211,23 +1235,33 @@ class App(tk.Tk):
     # Downloading latest posts
     # "Latest" means five pages of posts uploaded recently.
     # A filter here is a bit more complex, as it now uses not only blacklist, but also min score threshold and default rating, with additional check for any favorited posts.
-    def download_latest_posts(self, date_today, blacklist, login, min_score_threshold=0, default_rating='s'):
-        write_to_log("Downloading latest posts...")
+    def download_latest_posts(self, date_today, blacklist, login, min_score_threshold=0, default_rating='s', favorites_hidden=False):
+        if not favorites_hidden:
+            write_to_log("Downloading latest posts...")
         blacklist = set(filter(None, map(str.strip, blacklist)))
         blacklist.update({"young", "loli", "shota"})
         login = urllib.parse.quote(
-            login)  # If login has some special characters, convert them to a proper format for the request url
-        self.log_to_console("Downloading latest posts...")
+            login.replace(' ','_'))  # If login has some special characters, convert them to a proper format for the request url
+        if not favorites_hidden:
+            self.log_to_console("Downloading latest posts...")
         i = 1
         pages_to_download = 5  # This is how many pages of recent posts will be downloaded
         try:
             lat = pd.DataFrame(columns=['id', 'tag_string', 'url', 'ext'])
             if default_rating != 'a':
-                req = session.get(
-                    f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}%20-fav:{login}&page={i}')  # Only get posts that are not favorited and have a matching rating with the set one
+                if favorites_hidden:
+                    req = session.get(
+                        f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}&page={i}') # Only get posts that have a matching rating with the set one
+                else:
+                    req = session.get(
+                        f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}%20-fav:{login}&page={i}')  # Only get posts that are not favorited and have a matching rating with the set one
             else:
-                req = session.get(
-                    f'https://e621.net/posts.json?limit=320&tags=-fav:{login}&page={i}')  # Only get posts that are not favorited
+                if favorites_hidden:
+                    req = session.get(
+                        f'https://e621.net/posts.json?limit=320&page={i}')  # Get every post
+                else:
+                    req = session.get(
+                        f'https://e621.net/posts.json?limit=320&tags=-fav:{login}&page={i}')  # Only get posts that are not favorited
 
             time.sleep(INTENTIONAL_DELAY)
             res = req.status_code
@@ -1259,10 +1293,19 @@ class App(tk.Tk):
                         break
                     i += 1
                     if default_rating != 'a':
-                        req = session.get(
-                            f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}%20-fav:{login}&page={i}')
+                        if favorites_hidden:
+                            req = session.get(
+                                f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}&page={i}')  # Only get posts that have a matching rating with the set one
+                        else:
+                            req = session.get(
+                                f'https://e621.net/posts.json?limit=320&tags=rating:{default_rating}%20-fav:{login}&page={i}')  # Only get posts that are not favorited and have a matching rating with the set one
                     else:
-                        req = session.get(f'https://e621.net/posts.json?limit=320&tags=-fav:{login}&page={i}')
+                        if favorites_hidden:
+                            req = session.get(
+                                f'https://e621.net/posts.json?limit=320&page={i}')  # Get every post
+                        else:
+                            req = session.get(
+                                f'https://e621.net/posts.json?limit=320&tags=-fav:{login}&page={i}')  # Only get posts that are not favorited
                     time.sleep(INTENTIONAL_DELAY)
                     res = req.status_code
                     if res == 200:
@@ -1280,6 +1323,11 @@ class App(tk.Tk):
                     self.log_to_console("Your options might be too strict or no post was found.")
                     self.log_to_console("Please cancel the process and try again later.")
                     write_to_log(f'Error. Response from e6: {res}')
+            elif res == 403: # If favorites are suddenly hidden, attempt to download latest posts without knowing if they are favorited.
+                write_to_log(f'Favorites are hidden. Attempting to use a different method...')
+                self.download_latest_posts(today, config['options']["blacklist"], config['profile']['login'],
+                                           config['options']["min_score"], config['options']["default_rating"], favorites_hidden=True)
+                return None
             else:
                 self.data_state = 'error'
                 self.log_to_console(f"Error! Response from the e6: {res}")
@@ -1454,7 +1502,7 @@ class App(tk.Tk):
         # Download favorite posts (ask to confirm over-write if there is already downloaded posts in the folder)
         if self.data_state == 'fav':
             if not os.listdir('csv_files/fav_posts'):
-                self.download_fav_posts(config['options']["blacklist"])
+                self.download_fav_posts(config['options']["blacklist"], config['profile']['login'])
                 if self.data_state != 'error':
                     self.log_to_console("Checking latest posts...")
                     if not self.cancel_loading:
@@ -1471,7 +1519,7 @@ class App(tk.Tk):
                                                        self.data_response.__setitem__(0, False),
                                                        threading.Thread(target=self.load_data).start()))
                 elif self.data_response[0]:
-                    self.download_fav_posts(config['options']["blacklist"])
+                    self.download_fav_posts(config['options']["blacklist"], config['profile']['login'])
                     if self.data_state != 'error':
                         self.log_to_console("Checking latest posts...")
                         if not self.cancel_loading:
