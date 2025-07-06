@@ -31,11 +31,13 @@ If needed, all the information is available in the "Help" section in the app its
 
 ## Profile
 
-![profile](https://github.com/user-attachments/assets/ef1149d9-c213-4083-b688-ae33a5f57ff7)
+![profile](https://github.com/user-attachments/assets/5d36070c-8dd9-4cf3-9081-e3f930a88ddc)
 
 A profile or an account is the main source of data needed to figure out what should be recommended to you.
 
 It is just your e621 account, but instead of using your password, you should use your [API key](https://e621.net/help/api) (can be created in the settings of your account on e621). It is needed because the app uses their API service to make requests to e6.
+
+But as it is stated in the image, the API key is optional as long as your favorites are available to the public. Otherwise, if you have hidden your favorites, then the API key must be inputted into your profile.
 
 Your account should also contain at least one favorited post. Without it, the recommendation will have nothing to work with and refuse to operate.
 
