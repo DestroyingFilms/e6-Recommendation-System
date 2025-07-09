@@ -60,7 +60,7 @@ try:
             else:
                 temp_API_key = ''
             # Get all the values from the file, or get default ones, if something seems to be off.
-            config['profile']['API_key'] = str(temp_API_key)
+            config['profile']['API_key'] = str(temp_API_key)[:100]
             config['options']['auto_load'] = bool(config['options'].get('auto_load', True))
             config['options']['logging'] = bool(config['options'].get('logging', True))
             config['options']['blacklist'] = config['options'].get('blacklist',
@@ -849,7 +849,7 @@ class App(tk.Tk):
         api_key = config['profile']['API_key']
 
         # If login is empty, remove all loaded images, request user to provide account information.
-        if not login.strip() or len(login.strip()) > 100:
+        if not login.strip() or len(login.strip()) > 100 or len(api_key.strip())>100:
             write_to_log('Profile is missing or bad. Authorization requested.')
             self.ability_to_exit = True
             self.disable_sidebar()
@@ -863,7 +863,7 @@ class App(tk.Tk):
         # Login and API key is OK and Auto Load is set to True, then change state to a 'completed' one
         elif config['options']['auto_load']:
             if api_key.strip():
-                session.auth = HTTPBasicAuth(login, api_key)
+                session.auth = HTTPBasicAuth(login.replace(' ','_'), api_key)
             else:
                 session.auth = None
             self.ability_to_exit = False
@@ -873,7 +873,7 @@ class App(tk.Tk):
         else:
             write_to_log('Profile exists.')
             if api_key.strip():
-                session.auth = HTTPBasicAuth(login, api_key)
+                session.auth = HTTPBasicAuth(login.replace(' ','_'), api_key)
             else:
                 session.auth = None
             self.ability_to_exit = True
@@ -993,16 +993,16 @@ class App(tk.Tk):
     def login_command(self):
         login = self.login_entry.get()
         api_key = self.api_entry.get()
-        if not login.strip() or len(login.strip()) > 100:
+        if not login.strip() or len(login.strip()) > 100 or len(api_key.strip())>100:
             self.login_entry.configure(highlightbackground="red", highlightcolor="red")
         else:
             self.login_entry.configure(highlightbackground="white", highlightcolor="white")
 
-        if login.strip() and len(login.strip()) <= 100:
+        if login.strip() and len(login.strip()) <= 100 and len(api_key.strip())<=100:
             config['profile']['login'] = login
             if api_key.strip():
                 config['profile']['API_key'] = api_key
-                session.auth = HTTPBasicAuth(login, api_key)
+                session.auth = HTTPBasicAuth(login.replace(' ','_'), api_key)
             else:
                 config['profile']['API_key'] = ''
                 session.auth = None
@@ -1085,6 +1085,8 @@ class App(tk.Tk):
                                     highlightthickness=2)
         self.login_entry.pack(pady=7, ipadx=30, ipady=5)
 
+        self.login_entry.bind("<FocusOut>", lambda e, ent=self.login_entry: (login_text.set(ent.get()[:100])))
+
         title = tk.Label(self.login_frame, text="API key (optional)",
                          font=font.Font(family="Segoe UI", size=10, underline=True),
                          bg=overlays_color, fg="white")
@@ -1097,6 +1099,8 @@ class App(tk.Tk):
         self.api_entry = tk.Entry(self.login_frame, textvariable=api_text, justify=tk.CENTER, font=("Segoe UI", 10),
                                   highlightthickness=2, show="•")
         self.api_entry.pack(pady=10, ipadx=30, ipady=5)
+
+        self.api_entry.bind("<FocusOut>", lambda e, ent=self.api_entry: (api_text.set(ent.get()[:100])))
 
         if error:
             self.login_entry.configure(highlightbackground="red", highlightcolor="red")
