@@ -1183,8 +1183,13 @@ class App(tk.Tk):
                     write_to_log(f'Downloading page #{i}')
                     temp_fav = pd.DataFrame(js.get('posts'))
                     temp_fav_tags = pd.DataFrame.from_records(temp_fav['tags'])
-                    temp_fav['tag_string'] = temp_fav_tags['general'] + temp_fav_tags['artist'] + temp_fav_tags[
-                        'character'] + temp_fav_tags['species'] + temp_fav_tags['meta'] + temp_fav_tags['lore']
+                    tags = list(js.get("posts")[0]["tags"].keys())
+                    for j, tag in enumerate(tags):
+                        if j == 0:
+                            temp_fav['tag_string'] = temp_fav_tags.get(tag, '')
+                        else:
+                            temp_fav['tag_string'] += temp_fav_tags.get(tag, '')
+
                     del temp_fav_tags
                     temp_fav = temp_fav[[not bool(blacklist.intersection(set(row))) for row in temp_fav[
                         'tag_string']]]  # The filter itself. Will clear all the posts that contains any of the blacklisted tags.
@@ -1293,8 +1298,13 @@ class App(tk.Tk):
                     temp_lat['url'] = pd.DataFrame.from_records(temp_lat['preview'])['url']
                     temp_lat['ext'] = pd.DataFrame.from_records(temp_lat['file'])['ext']
                     temp_lat_tags = pd.DataFrame.from_records(temp_lat['tags'])
-                    temp_lat['tag_string'] = temp_lat_tags['general'] + temp_lat_tags['artist'] + temp_lat_tags[
-                        'character'] + temp_lat_tags['species'] + temp_lat_tags['meta'] + temp_lat_tags['lore']
+                    tags=list(js.get("posts")[0]["tags"].keys())
+                    for j,tag in enumerate(tags):
+                        if j==0:
+                            temp_lat['tag_string']=temp_lat_tags.get(tag,'')
+                        else:
+                            temp_lat['tag_string']+=temp_lat_tags.get(tag,'')
+
                     del temp_lat_tags
                     temp_lat = temp_lat[(temp_lat["total"] >= min_score_threshold) & (pd.Series(
                         [not bool(blacklist.intersection(set(row))) for row in
@@ -1464,7 +1474,7 @@ class App(tk.Tk):
                 self.progress["value"] = progress
                 self.loading_frame.update_idletasks()
 
-        countV = CountVectorizer(stop_words=None)
+        countV = CountVectorizer(stop_words=None,token_pattern=r"[^,\s]+")
         ratings = dict.fromkeys(lat['id'], -1)  # A dictionary containing grades for every latest post
         self.log_to_console("Starting recommendation service...")
         self.log_to_console(f"Chosen method: {method}")
